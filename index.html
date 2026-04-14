@@ -69,7 +69,10 @@ button{
 <div id="explanation" class="explanation"></div>
 </div>
 
-<button onclick="nextQuestion()">Avançar</button>
+<div style="display:flex;gap:10px;margin-top:15px;">
+<button id="prevBtn" onclick="previousQuestion()" style="width:50%;background:#22c55e;" disabled>← Voltar</button>
+<button id="nextBtn" onclick="nextQuestion()" style="width:50%;background:#0ea5e9;" disabled>Avançar →</button>
+</div>
 
 </div>
 
@@ -461,11 +464,13 @@ let banco = base.slice();
 
 let current=0;
 let score=0;
+let userAnswers={}; // rastrear respostas: {perguntaIndex: {valor: resposta, correta: true/false}}
 
 // iniciar
 function startGame(){
     current=0;
     score=0;
+    userAnswers={};
 
     document.getElementById("menu").classList.add("hidden");
     document.getElementById("quizBox").classList.remove("hidden");
@@ -487,53 +492,88 @@ function loadQuestion(){
     document.getElementById("score").innerText =
         "Pontuação: "+score;
 
+    const jaRespondida = userAnswers[current];
+
+    // atualizar estado dos botões
+    document.getElementById("prevBtn").disabled = current===0;
+    document.getElementById("nextBtn").disabled = !jaRespondida;
+
+    // mostrar explicação se já foi respondida
+    if(jaRespondida){
+        document.getElementById("explanation").innerText = q.exp;
+    }
+
     if(q.tipo==="vf"){
-        createButton("Verdadeiro",true);
-        createButton("Falso",false);
+        createButton("Verdadeiro",true,jaRespondida);
+        createButton("Falso",false,jaRespondida);
     }else{
-        q.a.forEach((opt,i)=>createButton(opt,i));
+        q.a.forEach((opt,i)=>createButton(opt,i,jaRespondida));
     }
 }
 
 // criar botão
-function createButton(text,val){
+function createButton(text,val,jaRespondida){
     let btn=document.createElement("button");
     btn.innerText=text;
     btn.classList.add("option");
+    
+    let q=banco[current];
+    let correct=q.c;
 
-    btn.onclick=()=>{
-        let q=banco[current];
-        let correct=q.c;
-        let buttons=document.querySelectorAll(".option");
-
-        buttons.forEach(b=>b.disabled=true);
-
-        if(val===correct){
-            btn.classList.add("correct");
-            score++;
-        }else{
-            btn.classList.add("wrong");
-
-            // destacar correta
-            buttons.forEach((b,i)=>{
-                if(q.tipo==="mc" && i===correct){
-                    b.classList.add("correct");
-                }
-                if(q.tipo==="vf"){
-                    if(correct===true && b.innerText==="Verdadeiro") b.classList.add("correct");
-                    if(correct===false && b.innerText==="Falso") b.classList.add("correct");
-                }
-            });
+    // se já foi respondida, restaurar o estado visual
+    if(jaRespondida){
+        let userAnswer = userAnswers[current];
+        if(userAnswer.valor === val){
+            if(userAnswer.correta){
+                btn.classList.add("correct");
+            }else{
+                btn.classList.add("wrong");
+            }
         }
+        // destacar resposta correta se errou
+        if(!userAnswer.correta && val === correct){
+            btn.classList.add("correct");
+        }
+        btn.disabled = true;
+    }else{
+        btn.onclick=()=>{
+            let buttons=document.querySelectorAll(".option");
+            buttons.forEach(b=>b.disabled=true);
 
-        document.getElementById("explanation").innerText = q.exp;
-    };
+            let estaCorreto = val===correct;
+            
+            if(estaCorreto){
+                btn.classList.add("correct");
+                score++;
+            }else{
+                btn.classList.add("wrong");
+                // destacar correta
+                buttons.forEach((b,i)=>{
+                    if(q.tipo==="mc" && i===correct){
+                        b.classList.add("correct");
+                    }
+                    if(q.tipo==="vf"){
+                        if(correct===true && b.innerText==="Verdadeiro") b.classList.add("correct");
+                        if(correct===false && b.innerText==="Falso") b.classList.add("correct");
+                    }
+                });
+            }
+
+            // armazenar resposta do usuário
+            userAnswers[current] = {valor: val, correta: estaCorreto};
+            
+            document.getElementById("explanation").innerText = q.exp;
+            document.getElementById("nextBtn").disabled = false;
+        };
+    }
 
     document.getElementById("answers").appendChild(btn);
 }
 
 // próxima
 function nextQuestion(){
+    if(!userAnswers[current]) return; // não avançar sem responder
+    
     current++;
 
     if(current < banco.length){
@@ -541,6 +581,14 @@ function nextQuestion(){
     }else{
         alert("Fim do Quiz! Pontuação: "+score);
         location.reload();
+    }
+}
+
+// voltar
+function previousQuestion(){
+    if(current > 0){
+        current--;
+        loadQuestion();
     }
 }
 

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Cirúrgico</title>
+
+<style>
+body{
+    font-family:Arial;
+    background:linear-gradient(135deg,#0f172a,#1e3a8a);
+    color:white;
+    margin:0;
+    text-align:center;
+}
+.container{padding:20px;}
+
+button{
+    width:100%;
+    padding:14px;
+    margin:6px 0;
+    border:none;
+    border-radius:10px;
+    font-size:15px;
+}
+
+.option{background:#e5e7eb;}
+.correct{background:#22c55e;color:white;}
+.wrong{background:#ef4444;color:white;}
+
+.card{
+    background:white;
+    color:black;
+    padding:20px;
+    border-radius:15px;
+    margin-top:15px;
+}
+
+.hidden{display:none;}
+
+.explanation{
+    background:#1e293b;
+    color:white;
+    padding:10px;
+    border-radius:10px;
+    margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Quiz Cirúrgico</h1>
+
+<div id="menu">
+<button onclick="startGame()">Iniciar Quiz</button>
+</div>
+
+<div id="quizBox" class="hidden">
+
+<div id="progress"></div>
+<div id="score"></div>
+
+<div class="card">
+<h2 id="question"></h2>
+<div id="answers"></div>
+<div id="explanation" class="explanation"></div>
+</div>
+
+<div style="display:flex;gap:10px;margin-top:15px;">
+<button id="prevBtn" onclick="previousQuestion()" style="width:50%;background:#22c55e;" disabled>← Voltar</button>
+<button id="nextBtn" onclick="nextQuestion()" style="width:50%;background:#0ea5e9;" disabled>Avançar →</button>
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+// 🔥 BANCO BASE (com explicação)
+const base = [
+
+{q:"O que é diérese?",tipo:"mc",
+a:["Controle de sangramento","Corte de tecidos","Fechamento da ferida","Remoção de tecido"],
+c:1,
+exp:"Diérese é o primeiro tempo cirúrgico, responsável pela incisão dos tecidos."},
+
+{q:"O que é hemostasia?",tipo:"mc",
+a:["Corte de tecidos","Controle de sangramento","Fechamento da ferida","Remoção de tecido"],
+c:1,
+exp:"Hemostasia previne e controla o sangramento durante a cirurgia."},
+
+{q:"O que é síntese?",tipo:"mc",
+a:["Corte de tecidos","Controle de sangramento","Fechamento da ferida","Remoção de tecido"],
+c:2,
+exp:"Síntese é o fechamento dos tecidos ao final do procedimento."},
+
+{q:"O que é exérese?",tipo:"mc",
+a:["Corte de tecidos","Controle de sangramento","Fechamento da ferida","Remoção de tecido"],
+c:3,
+exp:"Exérese corresponde à remoção de tecido ou órgão."},
+
+{q:"Primeiro tempo cirúrgico?",tipo:"mc",
+a:["Hemostasia","Diérese","Síntese","Exérese"],
+c:1,
+exp:"A diérese é o primeiro tempo, onde ocorre o corte dos tecidos."},
+
+{q:"Tipo de cirurgia programada?",tipo:"mc",
+a:["Emergência","Eletiva","Urgência","Ambulatorial"],
+c:1,
+exp:"Cirurgias eletivas são planejadas e não urgentes."},
+
+{q:"Cirurgia que não pode esperar?",tipo:"mc",
+a:["Eletiva","Emergência","Ambulatorial","Laparoscópica"],
+c:1,
+exp:"Emergência exige intervenção imediata devido ao risco de morte."},
+
+{q:"Quando ocorre o pré-operatório?",tipo:"mc",
+a:["Durante a cirurgia","Após a cirurgia","Antes da cirurgia","Imediatamente após"],
+c:2,
+exp:"Inclui preparo físico e psicológico do paciente."},
+
+{q:"Quando ocorre o pós-operatório?",tipo:"mc",
+a:["Antes da cirurgia","Durante a cirurgia","Após a cirurgia","Pré-operatório"],
+c:2,
+exp:"Envolve recuperação e cuidados após o procedimento."},
+
+{q:"Cirurgia sem infecção?",tipo:"mc",
+a:["Infectada","Contaminada","Limpa","Suja"],
+c:2,
+exp:"Realizada em tecidos estéreis, sem contaminação."},
+
+{q:"Cirurgia com infecção ativa?",tipo:"mc",
+a:["Limpa","Contaminada","Infectada","Suja"],
+c:2,
+exp:"Já existe presença de microrganismos no local."},
+
+{q:"Cirurgia curativa elimina a doença",tipo:"vf",c:true,exp:"Visa remover completamente a causa da doença."},
+
+{q:"Cirurgia paliativa cura a doença",tipo:"vf",c:false,exp:"A cirurgia paliativa apenas alivia sintomas."},
+
+{q:"A hemostasia é realizada após a diérese",tipo:"vf",c:true,exp:"A hemostasia segue a diérese para controlar sangramentos."},
+
+{q:"A exérese pode ser parcial ou total",tipo:"vf",c:true,exp:"Exérese remove parte ou todo o tecido afetado."},
+
+{q:"A síntese utiliza suturas para fechar a ferida",tipo:"vf",c:true,exp:"Síntese envolve suturar os tecidos para fechamento."},
+
+{q:"O tempo cirúrgico de hemostasia controla hemorragias",tipo:"vf",c:true,exp:"Hemostasia para sangramentos durante a cirurgia."},
+
+{q:"Cirurgia de urgência é realizada imediatamente",tipo:"vf",c:true,exp:"Urgência requer ação rápida para salvar vidas."},
+
+{q:"Cirurgia ambulatorial permite alta no mesmo dia",tipo:"vf",c:true,exp:"Paciente retorna para casa após o procedimento."},
+
+{q:"A anestesia geral é usada para cirurgias maiores",tipo:"vf",c:true,exp:"Induz inconsciência para procedimentos extensos."},
+
+{q:"A anestesia local é aplicada na região operada",tipo:"vf",c:true,exp:"Anestesia apenas na área cirúrgica."},
+
+{q:"O pré-operatório inclui exames laboratoriais",tipo:"vf",c:true,exp:"Avaliação prévia para segurança do paciente."},
+
+{q:"O jejum pré-operatório previne aspiração",tipo:"vf",c:true,exp:"Evita vômito durante anestesia."},
+
+{q:"A tricotomia remove pelos da área cirúrgica",tipo:"vf",c:true,exp:"Preparação da pele para reduzir infecção."},
+
+{q:"A antissepsia da pele usa iodo ou clorexidina",tipo:"vf",c:true,exp:"Desinfecção da pele antes da incisão."},
+
+{q:"O campo cirúrgico é isolado com campos estéreis",tipo:"vf",c:true,exp:"Protege contra contaminação."},
+
+{q:"A instrumentação cirúrgica inclui pinças e tesouras",tipo:"vf",c:true,exp:"Instrumentos essenciais para o procedimento."},
+
+{q:"O bisturi é usado para incisão",tipo:"vf",c:true,exp:"Ferramenta para cortar tecidos."},
+
+{q:"A pinça hemostática controla sangramento",tipo:"vf",c:true,exp:"Pinça para comprimir vasos."},
+
+{q:"A agulha de sutura é usada na síntese",tipo:"vf",c:true,exp:"Para fechar a ferida com pontos."},
+
+{q:"O dreno evita acúmulo de secreções",tipo:"vf",c:true,exp:"Dreno para remover fluidos."},
+
+{q:"O curativo protege a ferida",tipo:"vf",c:true,exp:"Protege contra infecção externa."},
+
+{q:"O pós-operatório imediato é nas primeiras 24 horas",tipo:"vf",c:true,exp:"Período crítico de observação."},
+
+{q:"A analgesia controla a dor pós-operatória",tipo:"vf",c:true,exp:"Medicação para aliviar dor."},
+
+{q:"A antibioticoprofilaxia previne infecção",tipo:"vf",c:true,exp:"Antibióticos preventivos."},
+
+{q:"A deambulação precoce acelera recuperação",tipo:"vf",c:true,exp:"Mobilização ajuda na cicatrização."},
+
+{q:"Cirurgia laparoscópica usa pequenas incisões",tipo:"vf",c:true,exp:"Mínimamente invasiva."},
+
+{q:"Cirurgia aberta envolve grande incisão",tipo:"vf",c:true,exp:"Incisão extensa para acesso."},
+
+{q:"A cirurgia robótica é assistida por computador",tipo:"vf",c:true,exp:"Tecnologia avançada para precisão."},
+
+{q:"O tempo cirúrgico total inclui todos os tempos",tipo:"vf",c:true,exp:"Diérese, hemostasia, exérese, síntese."},
+
+{q:"A contaminação cirúrgica aumenta risco de infecção",tipo:"vf",c:true,exp:"Contaminação eleva chances de complicações."},
+
+{q:"Cirurgia contaminada tem microrganismos presentes",tipo:"vf",c:true,exp:"Presença de bactérias no local."},
+
+{q:"Cirurgia suja tem pus ou perfuração",tipo:"vf",c:true,exp:"Infecção ativa ou trauma."},
+
+{q:"A classificação de Altemeier classifica cirurgias por risco",tipo:"vf",c:true,exp:"Sistema de classificação de risco infeccioso."},
+
+{q:"O cirurgião principal dirige a equipe",tipo:"vf",c:true,exp:"Responsável pelo procedimento."},
+
+{q:"O instrumentador passa os instrumentos",tipo:"vf",c:true,exp:"Auxilia com instrumentos estéreis."},
+
+{q:"A enfermeira circulante cuida da sala",tipo:"vf",c:true,exp:"Gerencia suprimentos e ambiente."},
+
+{q:"O anestesista administra anestesia",tipo:"vf",c:true,exp:"Especialista em anestesia."},
+
+{q:"A monitorização inclui sinais vitais",tipo:"vf",c:true,exp:"Monitora pressão, pulso, etc."},
+
+{q:"A hipóxia é baixa oxigenação",tipo:"vf",c:true,exp:"Falta de oxigênio no sangue."},
+
+{q:"A hipotensão é baixa pressão arterial",tipo:"vf",c:true,exp:"Pressão abaixo do normal."},
+
+{q:"A taquicardia é frequência cardíaca elevada",tipo:"vf",c:true,exp:"Coração batendo rápido."},
+
+{q:"A febre pós-operatória pode indicar infecção",tipo:"vf",c:true,exp:"Sinal de possível complicação."},
+
+{q:"Segundo tempo cirúrgico?",tipo:"mc",
+a:["Diérese","Hemostasia","Exérese","Síntese"],
+c:1,
+exp:"Hemostasia é o segundo tempo, controlando sangramentos."},
+
+{q:"Tipo de cirurgia em tecido infectado?",tipo:"mc",
+a:["Limpa","Contaminada","Infectada","Suja"],
+c:2,
+exp:"Cirurgia infectada ocorre em área com infecção ativa."},
+
+{q:"Instrumento para incisão?",tipo:"mc",
+a:["Pinça","Bisturi","Tesoura","Agulha"],
+c:1,
+exp:"Bisturi é usado para cortar tecidos."},
+
+{q:"Função da síntese?",tipo:"mc",
+a:["Corte","Controle sangramento","Remoção","Fechamento"],
+c:3,
+exp:"Síntese fecha a ferida cirúrgica."},
+
+{q:"Tipo de anestesia para região específica?",tipo:"mc",
+a:["Geral","Local","Regional","Sedação"],
+c:1,
+exp:"Anestesia local afeta apenas a área operada."},
+
+{q:"Período pós-operatório imediato?",tipo:"mc",
+a:["Primeiras 24h","Após 1 semana","Durante cirurgia","Pré-operatório"],
+c:0,
+exp:"Imediato é nas primeiras 24 horas após cirurgia."},
+
+{q:"Cirurgia com risco infeccioso alto?",tipo:"mc",
+a:["Limpa","Contaminada","Infectada","Suja"],
+c:3,
+exp:"Cirurgia suja tem maior risco de infecção."},
+
+{q:"Terceiro tempo cirúrgico?",tipo:"mc",
+a:["Diérese","Hemostasia","Exérese","Síntese"],
+c:2,
+exp:"Exérese é o terceiro tempo, remoção de tecido."},
+
+{q:"Quarto tempo cirúrgico?",tipo:"mc",
+a:["Diérese","Hemostasia","Exérese","Síntese"],
+c:3,
+exp:"Síntese é o quarto tempo, fechamento da ferida."},
+
+{q:"Tipo de cirurgia minimamente invasiva?",tipo:"mc",
+a:["Aberta","Laparoscópica","Robótica","Ambulatorial"],
+c:1,
+exp:"Laparoscópica usa pequenas incisões."},
+
+{q:"Função do dreno cirúrgico?",tipo:"mc",
+a:["Cortar","Suturar","Drenar fluidos","Anestesiar"],
+c:2,
+exp:"Dreno remove secreções para prevenir infecção."},
+
+{q:"O que é tricotomia?",tipo:"mc",
+a:["Jejum","Remoção de pelos","Antissepsia","Campo estéril"],
+c:1,
+exp:"Tricotomia remove pelos da área operada."},
+
+{q:"Instrumento para hemostasia?",tipo:"mc",
+a:["Bisturi","Pinça hemostática","Tesoura","Agulha"],
+c:1,
+exp:"Pinça hemostática comprime vasos para parar sangramento."},
+
+{q:"Tipo de anestesia que induz inconsciência?",tipo:"mc",
+a:["Local","Regional","Geral","Sedação"],
+c:2,
+exp:"Anestesia geral faz o paciente dormir completamente."},
+
+{q:"Complicação pós-operatória comum?",tipo:"mc",
+a:["Hipóxia","Febre","Hipotensão","Taquicardia"],
+c:1,
+exp:"Febre pode indicar infecção ou reação."},
+
+{q:"Função da enfermeira circulante?",tipo:"mc",
+a:["Passar instrumentos","Dirigir equipe","Cuidar da sala","Administrar anestesia"],
+c:2,
+exp:"Enfermeira circulante gerencia o ambiente cirúrgico."},
+
+{q:"O que é antibioticoprofilaxia?",tipo:"mc",
+a:["Analgesia","Prevenção de infecção","Controle de dor","Mobilização"],
+c:1,
+exp:"Antibióticos dados antes da cirurgia para prevenir infecção."},
+
+{q:"O que é CME?",tipo:"mc",
+a:["Central de Material e Esterilização","Centro de Médico e Enfermeiro","Companhia de Material Esterilizado","Controle de Materiais e Esterilização"],
+c:0,
+exp:"A CME é a Central de Material e Esterilização responsável por esterilizar insumos e instrumentos."},
+
+{q:"Qual a principal função da CME?",tipo:"mc",
+a:["Cirurgiar na sala","Esterilizar instrumentos","Atender emergência","Administrar anestesia"],
+c:1,
+exp:"A CME prepara e esteriliza materiais para uso seguro em procedimentos cirúrgicos."},
+
+{q:"Quando deve ser feita a montagem da mesa cirúrgica?",tipo:"mc",
+a:["Depois da cirurgia","Antes do paciente entrar na sala","Durante o procedimento","Após a assepsia"],
+c:1,
+exp:"A montagem da mesa deve ser feita antes do paciente entrar para garantir organização e esterilidade."},
+
+{q:"Qual é o objetivo da montagem da mesa cirúrgica?",tipo:"mc",
+a:["Deixar instrumentos à vista","Organizar instrumentos estéreis","Economizar espaço","Modificar o campo cirúrgico"],
+c:1,
+exp:"Montar a mesa permite organizar instrumentos e manter a esterilidade necessária para o procedimento."},
+
+{q:"Cirurgia classificada como suja normalmente envolve?",tipo:"mc",
+a:["Tecidos estéreis sem infecção","Trauma com pus ou perfuração","Procedimento eletivo","Cirurgia ambulatorial"],
+c:1,
+exp:"Cirurgia suja ocorre em presença de pus, perfuração intestinal ou infecção ativa."},
+
+{q:"Equipe multidisciplinar cirúrgica inclui?",tipo:"mc",
+a:["Somente cirurgião e anestesista","Cirurgião e instrumentador","Grupo de profissionais de diferentes áreas","Apenas enfermeiros"],
+c:2,
+exp:"Equipe multidisciplinar reúne profissionais de várias áreas para cuidar do paciente antes, durante e após a cirurgia."},
+
+{q:"Quem faz parte da reabilitação pós-operatória?",tipo:"mc",
+a:["Anestesista","Fisioterapeuta","Instrumentador","Cirurgião"],
+c:1,
+exp:"O fisioterapeuta participa da reabilitação e mobilização após a cirurgia."},
+
+{q:"A mesa cirúrgica é montada para:",tipo:"mc",
+a:["Organizar instrumentos estéreis","Aumentar o tempo cirúrgico","Decorar a sala","Guardar materiais sujos"],
+c:0,
+exp:"A mesa cirúrgica é montada para organizar instrumentos estéreis e manter a esterilidade."},
+
+{q:"A mesa de Mayo fica ao lado de:",tipo:"mc",
+a:["Do cirurgião","Da recepção","Da enfermaria","Do arquivo"],
+c:0,
+exp:"A mesa de Mayo fica ao lado do cirurgião e ao alcance durante o procedimento."},
+
+{q:"Instrumento usado para hemostasia:",tipo:"mc",
+a:["Pinça hemostática","Bisturi","Tesoura","Dreno"],
+c:0,
+exp:"A pinça hemostática é usada para comprimir vasos e controlar sangramento."},
+
+{q:"Instrumento usado para sutura:",tipo:"mc",
+a:["Agulha com fio","Pinça hemostática","Tesoura de Mayo","Compressa"],
+c:0,
+exp:"A agulha com fio é usada para suturar os tecidos."},
+
+{q:"Cirurgia classificada como suja envolve:",tipo:"mc",
+a:["Pus ou perfuração","Tecido estéril","Cirurgia estética","Cirurgia ambulatorial"],
+c:0,
+exp:"Cirurgia suja envolve contaminação ativa como pus ou perfuração intestinal."},
+
+{q:"Profissional responsável pela dieta pré-operatória:",tipo:"mc",
+a:["Nutricionista","Anestesista","Cirurgião","Instrumentador"],
+c:0,
+exp:"O nutricionista planeja e orienta a dieta no pré-operatório."},
+
+{q:"Quem faz a contagem de compressas?",tipo:"mc",
+a:["Enfermeiro","Cirurgião","Instrumentador","Anestesista"],
+c:0,
+exp:"O enfermeiro realiza a contagem de compressas para evitar materiais esquecidos no paciente."},
+
+{q:"Quem assinala alergia a medicamento?",tipo:"mc",
+a:["Enfermeiro","Paciente","Instrumentador","Faxineiro"],
+c:0,
+exp:"O enfermeiro assinala alergias na ficha antes da cirurgia."},
+
+{q:"Equipe multidisciplinar inclui:",tipo:"mc",
+a:["Profissionais de diferentes áreas","Apenas cirurgiões","Apenas anestesistas","Apenas enfermeiros"],
+c:0,
+exp:"Equipe multidisciplinar reúne profissionais de várias áreas para cuidado integral."},
+
+{q:"Cirurgia eletiva é:",tipo:"mc",
+a:["Programada","Emergencial","Sem anestesia","Apenas pediátrica"],
+c:0,
+exp:"Cirurgia eletiva é planejada e programada com antecedência."},
+
+{q:"Cirurgia de emergência exige:",tipo:"mc",
+a:["Intervenção imediata","Espera programada","Alta no mesmo dia","Cirurgia estética"],
+c:0,
+exp:"Emergência exige intervenção imediata para salvar vidas."},
+
+{q:"Pinça de Adson é utilizada para:",tipo:"mc",
+a:["Preensão de tecidos","Cortar","Anestesiar","Suturar"],
+c:0,
+exp:"A pinça de Adson é usada para preensão delicada de tecidos."},
+
+{q:"Campo cirúrgico estéril é protegido por:",tipo:"mc",
+a:["Campos estéreis","Documentos","Visitantes","Instrumentos sujos"],
+c:0,
+exp:"O campo cirúrgico é protegido por campos estéreis para evitar contaminação."},
+
+{q:"Montagem da mesa cirúrgica deve priorizar:",tipo:"mc",
+a:["Ordem de uso","Cor dos instrumentos","Tamanho da sala","Música ambiente"],
+c:0,
+exp:"A mesa deve ser montada na ordem de uso dos instrumentos."},
+
+{q:"A CME garante que os materiais estejam:",tipo:"mc",
+a:["Esterilizados","Sujos","Desorganizados","Usados"],
+c:0,
+exp:"A CME garante que os materiais estejam esterilizados e prontos para uso."},
+
+{q:"A classificação limpa-contaminada aplica-se a:",tipo:"mc",
+a:["Procedimentos em trato gastrointestinal controlado","Cirurgia estética","Cirurgia suja","Cirurgia emergencial"],
+c:0,
+exp:"Limpa-contaminada envolve procedimentos em trato gastrointestinal ou respiratório controlado."},
+
+{q:"A equipe multidisciplinar pode incluir:",tipo:"mc",
+a:["Fisioterapeuta","Apenas cirurgião","Apenas enfermeiro","Apenas instrumentador"],
+c:0,
+exp:"A equipe multidisciplinar pode incluir fisioterapeutas entre outros profissionais."},
+
+{q:"Lavagem cirúrgica das mãos usa:",tipo:"mc",
+a:["Antisséptico cirúrgico","Água fria","Álcool 70% nas mãos secas","Papel"],
+c:0,
+exp:"A lavagem cirúrgica utiliza antisséptico para reduzir microrganismos."},
+
+{q:"O dreno cirúrgico serve para:",tipo:"mc",
+a:["Drenar fluidos","Cortar","Anestesiar","Monitorar sinais vitais"],
+c:0,
+exp:"O dreno remove líquidos e secreções para evitar acúmulo."},
+
+{q:"A anestesia regional bloqueia:",tipo:"mc",
+a:["A dor em uma área específica","A consciência total","A visão","A memória"],
+c:0,
+exp:"A anestesia regional bloqueia a dor em uma área específica do corpo."},
+
+{q:"Cirurgia ambulatorial permite alta:",tipo:"mc",
+a:["No mesmo dia","Após uma semana","Após um mês","Nunca"],
+c:0,
+exp:"Cirurgia ambulatorial permite alta no mesmo dia do procedimento."},
+
+{q:"A checklist de segurança cirúrgica é revisada por:",tipo:"mc",
+a:["Enfermeiro","Paciente","Recepcionista","Engenheiro"],
+c:0,
+exp:"A checklist é revisada por um membro da equipe, geralmente o enfermeiro."},
+
+{q:"Durante o pós-operatório imediato, a equipe verifica:",tipo:"mc",
+a:["Sinais vitais","Decoração da sala","Inventário","Limpeza de roupa"],
+c:0,
+exp:"A equipe monitora sinais vitais no pós-operatório imediato."}
+
+];
+
+// 🔥 gera 100 questões sem erro
+let banco = base.slice();
+
+let current=0;
+let score=0;
+let userAnswers={}; // rastrear respostas: {perguntaIndex: {valor: resposta, correta: true/false}}
+
+// iniciar
+function startGame(){
+    current=0;
+    score=0;
+    userAnswers={};
+
+    document.getElementById("menu").classList.add("hidden");
+    document.getElementById("quizBox").classList.remove("hidden");
+
+    loadQuestion();
+}
+
+// carregar pergunta
+function loadQuestion(){
+    let q=banco[current];
+
+    document.getElementById("question").innerText=q.q;
+    document.getElementById("answers").innerHTML="";
+    document.getElementById("explanation").innerText="";
+
+    document.getElementById("progress").innerText =
+        "Pergunta "+(current+1)+" de "+banco.length;
+
+    document.getElementById("score").innerText =
+        "Pontuação: "+score;
+
+    const jaRespondida = userAnswers[current];
+
+    // atualizar estado dos botões
+    document.getElementById("prevBtn").disabled = current===0;
+    document.getElementById("nextBtn").disabled = !jaRespondida;
+
+    // mostrar explicação se já foi respondida
+    if(jaRespondida){
+        document.getElementById("explanation").innerText = q.exp;
+    }
+
+    if(q.tipo==="vf"){
+        createButton("Verdadeiro",true,jaRespondida);
+        createButton("Falso",false,jaRespondida);
+    }else{
+        q.a.forEach((opt,i)=>createButton(opt,i,jaRespondida));
+    }
+}
+
+// criar botão
+function createButton(text,val,jaRespondida){
+    let btn=document.createElement("button");
+    btn.innerText=text;
+    btn.classList.add("option");
+    
+    let q=banco[current];
+    let correct=q.c;
+
+    // se já foi respondida, restaurar o estado visual
+    if(jaRespondida){
+        let userAnswer = userAnswers[current];
+        if(userAnswer.valor === val){
+            if(userAnswer.correta){
+                btn.classList.add("correct");
+            }else{
+                btn.classList.add("wrong");
+            }
+        }
+        // destacar resposta correta se errou
+        if(!userAnswer.correta && val === correct){
+            btn.classList.add("correct");
+        }
+        btn.disabled = true;
+    }else{
+        btn.onclick=()=>{
+            let buttons=document.querySelectorAll(".option");
+            buttons.forEach(b=>b.disabled=true);
+
+            let estaCorreto = val===correct;
+            
+            if(estaCorreto){
+                btn.classList.add("correct");
+                score++;
+            }else{
+                btn.classList.add("wrong");
+                // destacar correta
+                buttons.forEach((b,i)=>{
+                    if(q.tipo==="mc" && i===correct){
+                        b.classList.add("correct");
+                    }
+                    if(q.tipo==="vf"){
+                        if(correct===true && b.innerText==="Verdadeiro") b.classList.add("correct");
+                        if(correct===false && b.innerText==="Falso") b.classList.add("correct");
+                    }
+                });
+            }
+
+            // armazenar resposta do usuário
+            userAnswers[current] = {valor: val, correta: estaCorreto};
+            
+            document.getElementById("explanation").innerText = q.exp;
+            document.getElementById("nextBtn").disabled = false;
+        };
+    }
+
+    document.getElementById("answers").appendChild(btn);
+}
+
+// próxima
+function nextQuestion(){
+    if(!userAnswers[current]) return; // não avançar sem responder
+    
+    current++;
+
+    if(current < banco.length){
+        loadQuestion();
+    }else{
+        alert("Fim do Quiz! Pontuação: "+score);
+        location.reload();
+    }
+}
+
+// voltar
+function previousQuestion(){
+    if(current > 0){
+        current--;
+        loadQuestion();
+    }
+}
+
+</script>
+
+</body>
+</html>

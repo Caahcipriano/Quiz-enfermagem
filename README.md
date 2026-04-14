@@ -1,4 +1,4 @@
 # Quiz-enfermagem
-Instrumentação cirurgica
-Tipos de cirurgias
-Tempos cirurgicos
+Instrumentação cirurgica,
+Tipos de cirurgias,
+Tempos cirurgicos.
